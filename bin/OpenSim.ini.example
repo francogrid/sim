@@ -238,7 +238,7 @@
     ;; Defaults to the user server url if not set
     ;; The old default is "OpenSim", set here for compatibility
     ;; The below is not commented for compatibility.
-    shard = "OpenSim"
+    ; shard = "OpenSim"
 
     ;# {user_agent} {} {User agent to report to web servers?} {} OpenSim LSL (Mozilla Compatible)
     ;; What is reported as the "User-Agent" when using llHTTPRequest
@@ -380,7 +380,7 @@
     ;# {wind_update_rate} {enabled:true} {Wind update rate in frames?} {} 150
     ;; How often should wind be updated, as a function of world frames.
     ;; Approximately 50 frames a second
-    wind_update_rate = 150
+    ; wind_update_rate = 150
 
     ;; The Default Wind Plugin to load
     ; wind_plugin = SimpleRandomWind
@@ -524,7 +524,7 @@
     ;# {OSFunctionThreatLevel} {Enabled:true AllowOSFunctions:true} {OSFunction threat level? (DANGEROUS!)} {None VeryLow Low Moderate High VeryHigh Severe} VeryLow
     ;; Threat level to allow, one of None, VeryLow, Low, Moderate, High,
     ;; VeryHigh, Severe
-    OSFunctionThreatLevel = VeryLow
+    ; OSFunctionThreatLevel = VeryLow
 
     ;; Time a script can spend in an event handler before it is interrupted
     ; EventLimit = 30
@@ -672,7 +672,7 @@
     ;; Include-Architecture = "config-include/Standalone.ini"
     ;; Include-Architecture = "config-include/StandaloneHypergrid.ini"
     ;; Include-Architecture = "config-include/Grid.ini"
-    ;; Include-Architecture = "config-include/GridHypergrid.ini"
+    ; Include-Architecture = "config-include/GridHypergrid.ini"
     ;; Include-Architecture = "config-include/SimianGrid.ini"
     ;; Include-Architecture = "config-include/HyperSimianGrid.ini"
     ; Include-Architecture = "config-include/Standalone.ini"

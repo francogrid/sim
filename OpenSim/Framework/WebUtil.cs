@@ -809,7 +809,7 @@ namespace OpenSim.Framework
             {
                 if ((verb == "POST") || (verb == "PUT"))
                 {
-                    request.ContentType = "text/www-form-urlencoded";
+                    request.ContentType = "application/x-www-form-urlencoded";
 
                     int length = 0;
                     using (StreamWriter writer = new StreamWriter(buffer))
@@ -944,7 +944,7 @@ namespace OpenSim.Framework
             {
                 using (WebResponse resp = request.GetResponse())
                 {
-                    if (resp.ContentLength > 0)
+                    if (resp.ContentLength != 0)
                     {
                         Stream respStream = resp.GetResponseStream();
                         XmlSerializer deserializer = new XmlSerializer(typeof(TResponse));

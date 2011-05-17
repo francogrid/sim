@@ -587,6 +587,19 @@ namespace OpenSim.Region.Framework.Scenes
                                           "reload estate",
                                           "Reload the estate data", HandleReloadEstate);
 
+            MainConsole.Instance.Commands.AddCommand("region", false, "delete object owner",
+                                          "delete object owner <UUID>",
+                                          "Delete object by owner", HandleDeleteObject);
+            MainConsole.Instance.Commands.AddCommand("region", false, "delete object creator",
+                                          "delete object creator <UUID>",
+                                          "Delete object by creator", HandleDeleteObject);
+            MainConsole.Instance.Commands.AddCommand("region", false, "delete object uuid",
+                                          "delete object uuid <UUID>",
+                                          "Delete object by uuid", HandleDeleteObject);
+            MainConsole.Instance.Commands.AddCommand("region", false, "delete object name",
+                                          "delete object name <UUID>",
+                                          "Delete object by name", HandleDeleteObject);
+
             //Bind Storage Manager functions to some land manager functions for this scene
             EventManager.OnLandObjectAdded +=
                 new EventManager.LandObjectAdded(simDataService.StoreLandObject);
@@ -1231,7 +1244,6 @@ namespace OpenSim.Region.Framework.Scenes
 
             // Increment the frame counter
             ++Frame;
-
             try
             {
                 // Check if any objects have reached their targets
@@ -2318,7 +2330,9 @@ namespace OpenSim.Region.Framework.Scenes
         /// <returns></returns>
         public bool IncomingCreateObject(ISceneObject sog)
         {
-            //m_log.Debug(" >>> IncomingCreateObject(sog) <<< " + ((SceneObjectGroup)sog).AbsolutePosition + " deleted? " + ((SceneObjectGroup)sog).IsDeleted);
+            //m_log.DebugFormat(" >>> IncomingCreateObject(sog) <<< {0} deleted? {1} isAttach? {2}", ((SceneObjectGroup)sog).AbsolutePosition,
+            //    ((SceneObjectGroup)sog).IsDeleted, ((SceneObjectGroup)sog).RootPart.IsAttachment);
+
             SceneObjectGroup newObject;
             try
             {
@@ -2336,9 +2350,29 @@ namespace OpenSim.Region.Framework.Scenes
                 return false;
             }
 
-            newObject.RootPart.ParentGroup.CreateScriptInstances(0, false, DefaultScriptEngine, GetStateSource(newObject));
-
-            newObject.ResumeScripts();
+            // For attachments, we need to wait until the agent is root
+            // before we restart the scripts, or else some functions won't work.
+            if (!newObject.IsAttachment)
+            {
+                newObject.RootPart.ParentGroup.CreateScriptInstances(0, false, DefaultScriptEngine, GetStateSource(newObject));
+                newObject.ResumeScripts();
+            }
+            else
+            {
+                ScenePresence sp;
+                if (TryGetScenePresence(newObject.OwnerID, out sp))
+                {
+                    // If the scene presence is here and already a root
+                    // agent, we came from a ;egacy region. Start the scripts
+                    // here as they used to start.
+                    // TODO: Remove in 0.7.3
+                    if (!sp.IsChildAgent)
+                    {
+                        newObject.RootPart.ParentGroup.CreateScriptInstances(0, false, DefaultScriptEngine, GetStateSource(newObject));
+                        newObject.ResumeScripts();
+                    }
+                }
+            }
 
             // Do this as late as possible so that listeners have full access to the incoming object
             EventManager.TriggerOnIncomingSceneObject(newObject);
@@ -2455,17 +2489,8 @@ namespace OpenSim.Region.Framework.Scenes
             ScenePresence sp = GetScenePresence(sog.OwnerID);
 
             if (sp != null)
-            {
-                AgentCircuitData aCircuit = m_authenticateHandler.GetAgentCircuitData(sp.UUID);
+                return sp.GetStateSource();
 
-                if (aCircuit != null && (aCircuit.teleportFlags != (uint)TeleportFlags.Default))
-                {
-                    // This will get your attention
-                    //m_log.Error("[XXX] Triggering CHANGED_TELEPORT");
-
-                    return 5; // StateSource.Teleporting
-                }
-            }
             return 2; // StateSource.PrimCrossing
         }
 
@@ -3023,7 +3048,7 @@ namespace OpenSim.Region.Framework.Scenes
                     m_sceneGraph.removeUserCount(!childagentYN);
                     
                     if (CapsModule != null)
-                        CapsModule.RemoveCapsHandler(agentID);
+                        CapsModule.RemoveCaps(agentID);
 
                     // REFACTORING PROBLEM -- well not really a problem, but just to point out that whatever
                     // this method is doing is HORRIBLE!!!
@@ -3280,8 +3305,8 @@ namespace OpenSim.Region.Framework.Scenes
 
                 if (CapsModule != null)
                 {
-                    CapsModule.NewUserConnection(agent);
-                    CapsModule.AddCapsHandler(agent.AgentID);
+                    CapsModule.SetAgentCapsSeeds(agent);
+                    CapsModule.CreateCaps(agent.AgentID);
                 }
             }
             else
@@ -3299,7 +3324,7 @@ namespace OpenSim.Region.Framework.Scenes
                     sp.AdjustKnownSeeds();
                     
                     if (CapsModule != null)
-                        CapsModule.NewUserConnection(agent);
+                        CapsModule.SetAgentCapsSeeds(agent);
                 }
             }
 
@@ -3666,6 +3691,15 @@ namespace OpenSim.Region.Framework.Scenes
                 m_log.DebugFormat("[SCENE]: Denying root agent entry to {0}: no allowed parcel", cAgentData.AgentID);
                 return false;
             }
+
+            int num = m_sceneGraph.GetNumberOfScenePresences();
+
+            if (num >= RegionInfo.RegionSettings.AgentLimit)
+            {
+                if (!Permissions.IsAdministrator(cAgentData.AgentID))
+                    return false;
+            }
+
 
             ScenePresence childAgentUpdate = WaitGetScenePresence(cAgentData.AgentID);
 
@@ -4831,6 +4865,60 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
+        private void HandleDeleteObject(string module, string[] cmd)
+        {
+            if (cmd.Length < 4)
+                return;
+
+            string mode = cmd[2];
+            string o = cmd[3];
+
+            List<SceneObjectGroup> deletes = new List<SceneObjectGroup>();
+
+            UUID match;
+
+            switch (mode)
+            {
+            case "owner":
+                if (!UUID.TryParse(o, out match))
+                    return;
+                ForEachSOG(delegate (SceneObjectGroup g)
+                        {
+                            if (g.OwnerID == match && !g.IsAttachment)
+                                deletes.Add(g);
+                        });
+                break;
+            case "creator":
+                if (!UUID.TryParse(o, out match))
+                    return;
+                ForEachSOG(delegate (SceneObjectGroup g)
+                        {
+                            if (g.RootPart.CreatorID == match && !g.IsAttachment)
+                                deletes.Add(g);
+                        });
+                break;
+            case "uuid":
+                if (!UUID.TryParse(o, out match))
+                    return;
+                ForEachSOG(delegate (SceneObjectGroup g)
+                        {
+                            if (g.UUID == match && !g.IsAttachment)
+                                deletes.Add(g);
+                        });
+                break;
+            case "name":
+                ForEachSOG(delegate (SceneObjectGroup g)
+                        {
+                            if (g.RootPart.Name == o && !g.IsAttachment)
+                                deletes.Add(g);
+                        });
+                break;
+            }
+
+            foreach (SceneObjectGroup g in deletes)
+                DeleteSceneObject(g, false);
+        }
+
         private void HandleReloadEstate(string module, string[] cmd)
         {
             if (MainConsole.Instance.ConsoleScene == null ||
@@ -4968,6 +5056,17 @@ namespace OpenSim.Region.Framework.Scenes
         // child agent creation, thereby emulating the SL behavior.
         public bool QueryAccess(UUID agentID, Vector3 position, out string reason)
         {
+            int num = m_sceneGraph.GetNumberOfScenePresences();
+
+            if (num >= RegionInfo.RegionSettings.AgentLimit)
+            {
+                if (!Permissions.IsAdministrator(agentID))
+                {
+                    reason = "The region is full";
+                    return false;
+                }
+            }
+
             reason = String.Empty;
             return true;
         }

@@ -26,38 +26,46 @@
  */
 
 using System;
+using Nini.Config;
+using OpenSim.Server.Base;
 using OpenSim.Services.Interfaces;
-using GridRegion = OpenSim.Services.Interfaces.GridRegion;
+using OpenSim.Framework.Servers.HttpServer;
+using OpenSim.Server.Handlers.Base;
 
-using OpenMetaverse;
-using OpenSim.Framework;
-using OpenSim.Region.Framework.Scenes;
-
-namespace OpenSim.Region.Framework.Interfaces
+namespace OpenSim.Server.Handlers.Hypergrid
 {
-    public interface IEntityTransferModule
+    public class HGFriendsServerConnector : ServiceConnector
     {
-        void Teleport(ScenePresence agent, ulong regionHandle, Vector3 position,
-                                                      Vector3 lookAt, uint teleportFlags);
+        private IFriendsService m_FriendsService;
+        private IUserAgentService m_UserAgentService;
+        private string m_ConfigName = "HGFriendsService";
 
-        void DoTeleport(ScenePresence sp, GridRegion reg, GridRegion finalDestination,
-            Vector3 position, Vector3 lookAt, uint teleportFlags, IEventQueue eq);
+        public HGFriendsServerConnector(IConfigSource config, IHttpServer server, string configName) :
+                base(config, server, configName)
+        {
+            if (configName != string.Empty) 
+                m_ConfigName = configName;
 
-        void TeleportHome(UUID id, IClientAPI client);
+            IConfig serverConfig = config.Configs[m_ConfigName];
+            if (serverConfig == null)
+                throw new Exception(String.Format("No section {0} in config file", m_ConfigName));
 
-        bool Cross(ScenePresence agent, bool isFlying);
+            string theService = serverConfig.GetString("LocalServiceModule",
+                    String.Empty);
 
-        void AgentArrivedAtDestination(UUID agent);
+            if (theService == String.Empty)
+                throw new Exception("No LocalServiceModule in config file");
 
-        void EnableChildAgents(ScenePresence agent);
+            Object[] args = new Object[] { config };
+            m_FriendsService = ServerUtils.LoadPlugin<IFriendsService>(theService, args);
 
-        void EnableChildAgent(ScenePresence agent, GridRegion region);
+            theService = serverConfig.GetString("UserAgentService", string.Empty);
+            if (theService == String.Empty)
+                throw new Exception("No UserAgentService in " + m_ConfigName);
 
-        void Cross(SceneObjectGroup sog, Vector3 position, bool silent);
-    }
+            m_UserAgentService = ServerUtils.LoadPlugin<IUserAgentService>(theService, args);
 
-    public interface IUserAgentVerificationModule
-    {
-        bool VerifyClient(AgentCircuitData aCircuit, string token);
+            server.AddStreamHandler(new HGFriendsServerPostHandler(m_FriendsService, m_UserAgentService));
+        }
     }
 }

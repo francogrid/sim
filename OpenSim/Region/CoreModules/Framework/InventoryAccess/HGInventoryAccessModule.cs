@@ -56,6 +56,7 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
 
         private string m_ProfileServerURI;
         private bool m_OutboundPermission;
+        private string m_ThisGatekeeper;
 
 //        private bool m_Initialized = false;
 
@@ -85,6 +86,7 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                     {
                         m_ProfileServerURI = thisModuleConfig.GetString("ProfileServerURI", string.Empty);
                         m_OutboundPermission = thisModuleConfig.GetBoolean("OutboundPermission", true);
+                        m_ThisGatekeeper = thisModuleConfig.GetString("Gatekeeper", string.Empty);
                     }
                     else
                         m_log.Warn("[HG INVENTORY ACCESS MODULE]: HGInventoryAccessModule configs not found. ProfileServerURI not set!");
@@ -119,6 +121,24 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
         #endregion
 
         #region Overrides of Basic Inventory Access methods
+
+        protected override string GenerateLandmark(ScenePresence presence, out string prefix, out string suffix)
+        {
+            UserAccount account = m_Scene.UserAccountService.GetUserAccount(m_Scene.RegionInfo.ScopeID, presence.UUID);
+            if (account == null)
+                prefix = "HG ";
+            else
+                prefix = string.Empty;
+            suffix = " @ " + m_ThisGatekeeper;
+            Vector3 pos = presence.AbsolutePosition;
+            return String.Format("Landmark version 2\nregion_id {0}\nlocal_pos {1} {2} {3}\nregion_handle {4}\ngatekeeper {5}\n",
+                                presence.Scene.RegionInfo.RegionID,
+                                pos.X, pos.Y, pos.Z,
+                                presence.RegionHandle,
+                                m_ThisGatekeeper);
+        }
+
+
         /// 
         /// CapsUpdateInventoryItemAsset
         ///

@@ -237,10 +237,20 @@ namespace OpenSim.Server.Handlers.Hypergrid
                 bool online = false;
                 bool.TryParse(requestData["online"].ToString(), out online);
 
-                hash["result"] = "true";
-
                 // let's spawn a thread for this, because it may take a long time...
-                Util.FireAndForget(delegate { m_HomeUsersService.StatusNotification(ids, userID, online); });
+                List<UUID> friendsOnline = m_HomeUsersService.StatusNotification(ids, userID, online);
+                if (friendsOnline.Count > 0)
+                {
+                    int i = 0;
+                    foreach (UUID id in friendsOnline)
+                    {
+                        hash["friend_" + i.ToString()] = id.ToString();
+                        i++;
+                    }
+                }
+                else
+                    hash["result"] = "No Friends Online";
+
             }
 
             XmlRpcResponse response = new XmlRpcResponse();
@@ -268,18 +278,18 @@ namespace OpenSim.Server.Handlers.Hypergrid
                         ids.Add(requestData[key].ToString());
                 }
 
-                List<UUID> online = m_HomeUsersService.GetOnlineFriends(userID, ids);
-                if (online.Count > 0)
-                {
-                    int i = 0;
-                    foreach (UUID id in online)
-                    {
-                        hash["friend_" + i.ToString()] = id.ToString();
-                        i++;
-                    }
-                }
-                else
-                    hash["result"] = "No Friends Online";
+                //List<UUID> online = m_HomeUsersService.GetOnlineFriends(userID, ids);
+                //if (online.Count > 0)
+                //{
+                //    int i = 0;
+                //    foreach (UUID id in online)
+                //    {
+                //        hash["friend_" + i.ToString()] = id.ToString();
+                //        i++;
+                //    }
+                //}
+                //else
+                //    hash["result"] = "No Friends Online";
             }
 
             XmlRpcResponse response = new XmlRpcResponse();

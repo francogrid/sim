@@ -1754,6 +1754,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             m_log.Info("[SCENE]: Loaded " + PrimsFromDB.Count.ToString() + " SceneObject(s)");
             LoadingPrims = false;
+            EventManager.TriggerPrimsLoaded(this);
         }
 
 
@@ -1908,6 +1909,10 @@ namespace OpenSim.Region.Framework.Scenes
                 AddNewSceneObject(sceneObject, true);
                 sceneObject.SetGroup(groupID, null);
             }
+
+            IUserManagement uman = RequestModuleInterface<IUserManagement>();
+            if (uman != null)
+                sceneObject.RootPart.CreatorIdentification = uman.GetUserUUI(ownerID);
 
             sceneObject.ScheduleGroupForFullUpdate();
 

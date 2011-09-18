@@ -5,6 +5,9 @@
 [Startup]
     ; Set this to true if you want to log crashes to disk
     ; this can be useful when submitting bug reports.
+    ; However, this will only log crashes within OpenSimulator that cause the entire program to exit
+    ; It will not log crashes caused by virtual machine failures, which includes mono and ODE failures.
+    ; You will need to capture these native stack traces by recording the session log itself.
     save_crashes = false
 
     ; Directory to save crashes to if above is enabled
@@ -14,10 +17,13 @@
     ; Place to create a PID file
     ; PIDFile = "/tmp/my.pid"
 
+    ; Console commands run at startup
     startup_console_commands_file = "startup_commands.txt"
+
+    ; Console commands run on shutdown
     shutdown_console_commands_file = "shutdown_commands.txt"
 
-    ; To run a script every few minutes, set the script filename here
+    ; Console commands run every 20 minutes
     ; timer_Script = "filename"
 
     ; ##
@@ -64,6 +70,7 @@
     ; except that everything is also enclosed in a <Regions> tag.
     ; regionload_webserver_url = "http://example.com/regions.xml";
 
+<<<<<<< HEAD
     ; Draw objects on maptile.  This step might take a long time if you've got a large number of
     ; objects, so you can turn it off here if you'd like.
     DrawPrimOnMapTile = true
@@ -71,12 +78,22 @@
     TextureOnMapTile = true
 
     ; Maximum total size, and maximum size where a prim can be physical
+=======
+    ; Maximum size of non physical prims.  Affects resizing of existing prims.  This can be overriden in the region config file (as NonphysicalPrimMax!).
+>>>>>>> f1612997a64bca6b13c19e4beed22b90843f070e
     NonPhysicalPrimMax = 256
-    PhysicalPrimMax = 10 ; (I think this was moved to the Regions.ini!)
+
+    ; Maximum size of physical prims.  Affects resizing of existing prims.  This can be overriden in the region config file.
+    PhysicalPrimMax = 10
+
+    ; If a viewer attempts to rez a prim larger than the non-physical or physical prim max, clamp the dimensions to the appropriate maximum
+    ; This can be overriden in the region config file.
     ClampPrimSize = false
 
-    ; Allow scripts to cross region boundaries.  These are recompiled on the new region.
-    AllowScriptCrossing = false
+    ; Allow scripts to keep running when they cross region boundaries, rather than being restarted.  State is reloaded on the destination region.
+    ; This only applies when crossing to a region running in a different simulator.  
+    ; For crossings where the regions are on the same simulator the script is always kept running.
+    AllowScriptCrossing = true
 
     ; Allow compiled script binary code to cross region boundaries.
     ; If you set this to "true", any region that can teleport to you can
@@ -94,7 +111,7 @@
     ; neighbors on each side for a total of 49 regions in view. Warning, unless
     ; all the regions have the same drawdistance, you will end up with strange
     ; effects because the agents that get closed may be inconsistent.
-    ; DefaultDrawDistance = 255.0
+    DefaultDrawDistance = 255.0
 
     ; If you have only one region in an instance, or to avoid the many bugs
     ; that you can trigger in modules by restarting a region, set this to
@@ -102,7 +119,7 @@
     ; This is meant to be used on systems where some external system like
     ; Monit will restart any instance that exits, thereby making the shutdown
     ; into a restart.
-    ;InworldRestartShutsDown = false
+    InworldRestartShutsDown = false
 
     ; ##
     ; ## PRIM STORAGE
@@ -157,6 +174,7 @@
     ;physics = basicphysics
     ;physics = POS
     ;physics = modified_BulletX
+    ;physics = BulletSim
 
     ; ##
     ; ## PERMISSIONS
@@ -167,7 +185,11 @@
     ; If set to false, then, in theory, the server never carries out permission checks (allowing anybody to copy
     ; any item, etc.  This may not yet be implemented uniformally.
     ; If set to true, then all permissions checks are carried out
+<<<<<<< HEAD
     ; Default is false
+=======
+    ; Default is true
+>>>>>>> f1612997a64bca6b13c19e4beed22b90843f070e
     serverside_object_permissions = true
 
     allow_grid_gods = false
@@ -206,14 +228,36 @@
     ; ## WORLD MAP
     ; ##
 
+<<<<<<< HEAD
+    WorldMapModule = "WorldMap"
+    MapImageModule = "MapImageModule"
+    ; Set to false to not generate any maptiles
+    GenerateMaptiles = "true"
+    ; Refresh (in seconds) the map tile periodically
+    MaptileRefresh = 86400
+=======
     ;WorldMapModule = "WorldMap"
     ;MapImageModule = "MapImageModule"
+
+    ; World map blacklist timeout in seconds
+    ;BlacklistTimeout = 600
+
     ; Set to false to not generate any maptiles
-    ;GenerateMaptiles = "true"
+    ;GenerateMaptiles = true
+
     ; Refresh (in seconds) the map tile periodically
     ;MaptileRefresh = 0
+
+>>>>>>> f1612997a64bca6b13c19e4beed22b90843f070e
     ; If not generating maptiles, use this static texture asset ID
     ;MaptileStaticUUID = "00000000-0000-0000-0000-000000000000"
+
+    ; Draw objects on maptile.  This step might take a long time if you've got a large number of
+    ; objects, so you can turn it off here if you'd like.
+    DrawPrimOnMapTile = true
+
+    ; Use terrain texture for maptiles if true, use shaded green if false
+    TextureOnMapTile = true
 
     ; ##
     ; ## EMAIL MODULE
@@ -227,7 +271,6 @@
 
     ; If enabled, enableFlySlow will change the primary fly state to
     ; FLYSLOW, and the "always run" state will be the regular fly.
-
     enableflyslow = false
 
     ; PreJump is an additional animation state, but it probably
@@ -236,7 +279,6 @@
 
     ; This is commented so it will come on automatically once it's
     ; supported.
-
     ; enableprejump = true
 
     ; Simulator Stats URI
@@ -265,16 +307,17 @@
     DelayBeforeAppearanceSave = 5
     DelayBeforeAppearanceSend = 2
 
-[SMTP]
-    enabled=false
 
-    ;enabled=true
-    ;internal_object_host=lsl.opensim.local
-    ;host_domain_header_from=127.0.0.1
-    ;SMTP_SERVER_HOSTNAME=127.0.0.1
-    ;SMTP_SERVER_PORT=25
-    ;SMTP_SERVER_LOGIN=foo
-    ;SMTP_SERVER_PASSWORD=bar
+[SMTP]
+    enabled = false
+
+    ;enabled = true
+    ;internal_object_host = lsl.opensim.local
+    ;host_domain_header_from = 127.0.0.1
+    ;SMTP_SERVER_HOSTNAME = 127.0.0.1
+    ;SMTP_SERVER_PORT = 25
+    ;SMTP_SERVER_LOGIN = foo
+    ;SMTP_SERVER_PASSWORD = bar
 
 
 [Network]
@@ -504,6 +547,10 @@
     ; Distance in meters that shouts should travel.  Default is 100m
     shout_distance = 100
 
+[EntityTransfer]
+    ; The maximum distance in regions that an agent is allowed to teleport along the x or y axis
+    ; This is set to 4095 because current viewers can't handle teleports that are greater than this distance
+    max_distance = 4095
 
 [Messaging]
     ; Control which region module is used for instant messaging.
@@ -511,12 +558,12 @@
     InstantMessageModule = InstantMessageModule
     ; MessageTransferModule = MessageTransferModule
     OfflineMessageModule = OfflineMessageModule
-    OfflineMessageURL = http://im.main.francogrid.org/
+    OfflineMessageURL = http://im.beta.francogrid.org/
     MuteListModule = MuteListModule
-    MuteListURL = http://im.main.francogrid.org/
+    MuteListURL = http://im.beta.francogrid.org/
 
     ; Control whether group messages are forwarded to offline users.  Default is true.
-    ForwardOfflineGroupMessages = false
+    ForwardOfflineGroupMessages = true
 
 
 [Inventory]
@@ -529,11 +576,7 @@
 [Mesh]
     ; enable / disable Collada mesh support
     ; default is true
-<<<<<<< HEAD
-    AllowMeshUpload = true
-=======
     ; AllowMeshUpload = true
->>>>>>> 784f70f70405aa5b163865a01637fe6132dd1bc5
 
     ; if you use Meshmerizer and want collisions for meshies, setting this to true
     ; will cause OpenSim to attempt to decode meshies assets, extract the physics
@@ -714,6 +757,49 @@
     ; true. Note that this will increase memory usage and region startup time. Default is false.
     ;force_simple_prim_meshing = true
 
+[BulletSim]
+    ; World parameters
+    DefaultFriction = 0.50
+    DefaultDensity = 10.000006836
+    DefaultRestitution = 0.0
+    Gravity = -9.80665
+
+    TerrainFriction = 0.50
+    TerrainHitFriction = 0.8
+    TerrainRestitution = 0
+    AvatarFriction = 0
+    AvatarDensity = 60.0
+    AvatarCapsuleRadius = 0.37
+    AvatarCapsuleHeight = 1.5
+
+    MaxObjectMass = 10000.01
+
+    ; Dynamic parameters
+    LinearDamping = 0.0
+    AngularDamping = 0.0
+    DeactivationTime = 0.2
+    LinearSleepingThreshold = 0.8
+    AngularSleepingThreshold = 1.0
+    CcdMotionThreshold = 0.5
+    CcdSweptSphereRadius = 0.2
+
+    ; Whether to mesh sculpties
+    MeshSculptedPrim = true
+
+    ; If 'true', force simple prims (box and sphere) to be meshed
+    ForceSimplePrimMeshing = false
+
+    ; level of detail for physical meshes. 32,16,8 or 4 with 32 being full detail
+    MeshLevelOfDetail = 8
+    ; number^2 non-physical level of detail of the sculpt texture.  32x32 - 1024 verticies
+    SculptLevelOfDetail = 32
+
+    ; Bullet step parameters
+    MaxSubSteps = 10;
+    FixedTimeStep = .01667
+
+    MaxCollisionsPerFrame = 2048
+    MaxUpdatesPerFrame = 2048
 
 [RemoteAdmin]
     enabled = false
@@ -859,11 +945,6 @@
     ;exclude_list=User 1,User 2,User 3
 
 
-[CMS]
-    enabled = false
-    ;channel = 345
-
-
 ; The following settings control the progression of daytime
 ; in the Sim.  The defaults are the same as the commented out settings
 [Sun]
@@ -971,13 +1052,13 @@
 
     ; This semicolon-separated string serves to notify specific data services about the existence
     ; of this sim. Uncomment if you want to index your data with this and/or other search providers.
-    data_services = "http://search.main.francogrid.org/register"
+    data_services = "http://search.beta.francogrid.org/register"
 
 [Search]
-	SearchURL = "http://search.main.francogrid.org/query"
+	SearchURL = "http://search.beta.francogrid.org/query"
 
 [Profile]
-	ProfileURL = "http://profile.main.francogrid.org/"
+	ProfileURL = "http://profile.beta.francogrid.org/"
 
 [Economy]
     ; These economy values get used in the BetaGridLikeMoneyModule.  - This module is for demonstration only -
@@ -1129,6 +1210,12 @@
     ;; Path to script assemblies 
     ; ScriptEnginesPath = "ScriptEngines"
 
+    ; Whether to delete previously compiled scripts when the sim starts. If you disable this
+    ; then startup will be faster. However, then it becomes your responsibility to delete the
+    ; compiled scripts if OpenSim has changed enough that previously compiled scripts are no
+    ; longer compatible.
+    DeleteScriptsOnStartup = true 
+
 
 [OpenGridProtocol]
     ;These are the settings for the Open Grid Protocol..  the Agent Domain, Region Domain,   you know..
@@ -1183,6 +1270,10 @@
     ; - the third field is a number indicating how many scripts failed to compile
     ; - "oar error" if supplied, provides the error message from the OAR load
     channel_notify = -800
+    ; - disallow logins while scripts are loading
+    login_disable = false
+    ; - send an alert as json to a service
+    ; alert_uri = "http://myappserver.net/my_handler/"
 
 
 [MRM]
@@ -1308,7 +1399,7 @@
 
     ; Flotsam XmlRpc Service for Groups
     ServicesConnectorModule = XmlRpcGroupsServicesConnector
-    GroupsServerURI        = http://groups.main.francogrid.org/
+    GroupsServerURI        = http://groups.beta.francogrid.org/
 
     ; XmlRpc Security settings.  These must match those set on your backend groups service if the service is using these keys
     ;XmlRpcServiceReadKey    = 1234 
@@ -1350,24 +1441,10 @@
     ; Enable media on a prim facilities
     Enabled = true;
 
-<<<<<<< HEAD
-[Architecture]
-    ;# {Include-Architecture} {} {Choose one of the following architectures} {config-include/Standalone.ini config-include/StandaloneHypergrid.ini config-include/Grid.ini config-include/GridHypergrid.ini config-include/SimianGrid.ini config-include/HyperSimianGrid.ini} config-include/Standalone.ini
-    ;; Choose one of these architecture includes:
-    ;; Include-Architecture = "config-include/Standalone.ini"
-    ;; Include-Architecture = "config-include/StandaloneHypergrid.ini"
-    ;; Include-Architecture = "config-include/Grid.ini"
-    Include-Architecture = "config-include/GridHypergrid.ini"
-    ;; Include-Architecture = "config-include/SimianGrid.ini"
-    ;; Include-Architecture = "config-include/HyperSimianGrid.ini"
-    ; Include-Architecture = "config-include/Standalone.ini"
+[NPC]
+    ;; Enable Non Player Character (NPC) facilities
+    Enabled = false
 
-    ;; Then choose
-    ;; config-include/StandaloneCommon.ini.example (if you're in standlone) OR
-    ;; config-include/GridCommon.ini.example (if you're connected to a grid)
-    ;; Copy to your own .ini there (without .example extension) and edit it
-    ;; to customize your data
-=======
 ;; 
 ;; If you are using a simian grid frontend you can enable
 ;; this module to upload tile images for the mapping fn
@@ -1397,7 +1474,6 @@
 [AutoBackupModule]
 	;; default is module is disabled at the top level
 	AutoBackupModuleEnabled = false
->>>>>>> 784f70f70405aa5b163865a01637fe6132dd1bc5
 
 [Modules]
     Include-modules = "addon-modules/*/config/*.ini"

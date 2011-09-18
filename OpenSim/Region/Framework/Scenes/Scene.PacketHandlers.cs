@@ -191,10 +191,6 @@ namespace OpenSim.Region.Framework.Scenes
             if (part == null)
                 return;
             
-            // The prim is in the process of being deleted.
-            if (null == part.ParentGroup.RootPart)
-                return;
-            
             // A deselect packet contains all the local prims being deselected.  However, since selection is still
             // group based we only want the root prim to trigger a full update - otherwise on objects with many prims
             // we end up sending many duplicate ObjectUpdates
@@ -460,31 +456,6 @@ namespace OpenSim.Region.Framework.Scenes
                         client.SendViewerEffect(effectBlockArray);
                 }
             );
-        }
-
-
-        /// <summary>
-        /// Handle a fetch inventory request from the client
-        /// </summary>
-        /// <param name="remoteClient"></param>
-        /// <param name="itemID"></param>
-        /// <param name="ownerID"></param>
-        public void HandleFetchInventory(IClientAPI remoteClient, UUID itemID, UUID ownerID)
-        {
-            if (LibraryService != null && LibraryService.LibraryRootFolder != null && ownerID == LibraryService.LibraryRootFolder.Owner)
-            {
-                //m_log.Debug("request info for library item");
-                return;
-            }
-            
-            InventoryItemBase item = new InventoryItemBase(itemID, remoteClient.AgentId);
-            item = InventoryService.GetItem(item);
-            
-            if (item != null)
-            {
-                remoteClient.SendInventoryItemDetails(ownerID, item);
-            }
-            // else shouldn't we send an alert message?
         }
         
         /// <summary>

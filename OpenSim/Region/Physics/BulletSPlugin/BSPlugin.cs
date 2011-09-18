@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (c) Contributors, http://opensimulator.org/
  * See CONTRIBUTORS.TXT for a full list of copyright holders.
  *
@@ -6,7 +6,7 @@
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
  *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
+ *     * Redistributions in binary form must reproduce the above copyrightD
  *       notice, this list of conditions and the following disclaimer in the
  *       documentation and/or other materials provided with the distribution.
  *     * Neither the name of the OpenSimulator Project nor the
@@ -24,17 +24,45 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
+using System;
+using System.Collections.Generic;
+using OpenSim.Framework;
+using OpenSim.Region.Physics.Manager;
 using OpenMetaverse;
-using OpenSim.Region.Framework.Scenes;
 
-namespace OpenSim.Region.CoreModules.Avatar.NPC
+namespace OpenSim.Region.Physics.BulletSPlugin
 {
-    public interface INPCModule
+public class BSPlugin : IPhysicsPlugin
+{
+    //private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
+    private BSScene _mScene;
+
+    public BSPlugin()
     {
-        UUID CreateNPC(string firstname, string lastname, Vector3 position, Scene scene, UUID cloneAppearanceFrom);
-        void Autopilot(UUID agentID, Scene scene, Vector3 pos);
-        void Say(UUID agentID, Scene scene, string text);
-        void DeleteNPC(UUID agentID, Scene scene);
     }
+
+    public bool Init()
+    {
+        return true;
+    }
+
+    public PhysicsScene GetScene(String sceneIdentifier)
+    {
+        if (_mScene == null)
+        {
+            _mScene = new BSScene(sceneIdentifier);
+        }
+        return (_mScene);
+    }
+
+    public string GetName()
+    {
+        return ("BulletSim");
+    }
+
+    public void Dispose()
+    {
+    }
+}
 }

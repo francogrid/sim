@@ -83,15 +83,24 @@ namespace OpenSim.Services.AssetService
 
                     if (assetLoaderEnabled)
                     {
-                        m_log.InfoFormat("[ASSET]: Loading default asset set from {0}", loaderArgs);
-                        m_AssetLoader.ForEachDefaultXmlAsset(loaderArgs,
-                                delegate(AssetBase a)
+                        m_log.DebugFormat("[ASSET]: Loading default asset set from {0}", loaderArgs);
+
+                        m_AssetLoader.ForEachDefaultXmlAsset(
+                            loaderArgs,
+                            delegate(AssetBase a)
+                            {
+                                AssetBase existingAsset = Get(a.ID);
+//                                AssetMetadata existingMetadata = GetMetadata(a.ID);
+
+                                if (existingAsset == null || Util.SHA1Hash(existingAsset.Data) != Util.SHA1Hash(a.Data))
                                 {
+//                                    m_log.DebugFormat("[ASSET]: Storing {0} {1}", a.Name, a.ID);
                                     Store(a);
-                                });
+                                }
+                            });
                     }
 
-                    m_log.Info("[ASSET SERVICE]: Local asset service enabled");
+                    m_log.Debug("[ASSET SERVICE]: Local asset service enabled");
                 }
             }
         }
@@ -165,10 +174,17 @@ namespace OpenSim.Services.AssetService
 
         public virtual string Store(AssetBase asset)
         {
-//            m_log.DebugFormat(
-//                "[ASSET SERVICE]: Storing asset {0} {1}, bytes {2}", asset.Name, asset.ID, asset.Data.Length);
-            
-            m_Database.StoreAsset(asset);
+            if (!m_Database.ExistsAsset(asset.FullID))
+            {
+//                m_log.DebugFormat(
+//                    "[ASSET SERVICE]: Storing asset {0} {1}, bytes {2}", asset.Name, asset.FullID, asset.Data.Length);
+                m_Database.StoreAsset(asset);
+            }
+//            else
+//            {
+//                m_log.DebugFormat(
+//                    "[ASSET SERVICE]: Not storing asset {0} {1}, bytes {2} as it already exists", asset.Name, asset.FullID, asset.Data.Length);                
+//            }
 
             return asset.ID;
         }

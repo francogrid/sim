@@ -83,7 +83,7 @@ namespace OpenSim.Region.Examples.SimpleModule
         public event DeRezObject OnDeRezObject;
         public event Action<IClientAPI> OnRegionHandShakeReply;
         public event GenericCall1 OnRequestWearables;
-        public event GenericCall1 OnCompleteMovementToRegion;
+        public event Action<IClientAPI, bool> OnCompleteMovementToRegion;
         public event UpdateAgent OnPreAgentUpdate;
         public event UpdateAgent OnAgentUpdate;
         public event AgentRequestSit OnAgentRequestSit;
@@ -222,7 +222,7 @@ namespace OpenSim.Region.Examples.SimpleModule
         public event ScriptReset OnScriptReset;
         public event GetScriptRunning OnGetScriptRunning;
         public event SetScriptRunning OnSetScriptRunning;
-        public event UpdateVector OnAutoPilotGo;
+        public event Action<Vector3, bool> OnAutoPilotGo;
 
         public event TerrainUnacked OnUnackedTerrain;
 
@@ -663,7 +663,7 @@ namespace OpenSim.Region.Examples.SimpleModule
 
             if (OnCompleteMovementToRegion != null)
             {
-                OnCompleteMovementToRegion(this);
+                OnCompleteMovementToRegion(this, true);
             }
         }
         public void SendAssetUploadCompleteMessage(sbyte AssetType, bool Success, UUID AssetFullID)
@@ -1152,7 +1152,7 @@ namespace OpenSim.Region.Examples.SimpleModule
         {
         }
 
-        public void SendTextBoxRequest(string message, int chatChannel, string objectname, string ownerFirstName, string ownerLastName, UUID objectId)
+        public void SendTextBoxRequest(string message, int chatChannel, string objectname, UUID ownerID, string ownerFirstName, string ownerLastName, UUID objectId)
         {
         }
 

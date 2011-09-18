@@ -134,7 +134,7 @@ namespace OpenSim.Region.CoreModules.World.Permissions
                 return;
 
             m_allowGridGods = myConfig.GetBoolean("allow_grid_gods", false);
-            m_bypassPermissions = !myConfig.GetBoolean("serverside_object_permissions", false);
+            m_bypassPermissions = !myConfig.GetBoolean("serverside_object_permissions", true);
             m_propagatePermissions = myConfig.GetBoolean("propagate_permissions", true);
             m_RegionOwnerIsGod = myConfig.GetBoolean("region_owner_is_god", true);
             m_RegionManagerIsGod = myConfig.GetBoolean("region_manager_is_god", false);
@@ -146,7 +146,7 @@ namespace OpenSim.Region.CoreModules.World.Permissions
                 = ParseUserSetConfigSetting(myConfig, "allowed_script_editors", m_allowedScriptEditors);
 
             if (m_bypassPermissions)
-                m_log.Info("[PERMISSIONS]: serviceside_object_permissions = false in ini file so disabling all region service permission checks");
+                m_log.Info("[PERMISSIONS]: serverside_object_permissions = false in ini file so disabling all region service permission checks");
             else
                 m_log.Debug("[PERMISSIONS]: Enabling all region service permission checks");
 
@@ -1131,7 +1131,7 @@ namespace OpenSim.Region.CoreModules.World.Permissions
                 SceneObjectPart part = scene.GetSceneObjectPart(objectID);
                 if (part.OwnerID != moverID)
                 {
-                    if (part.ParentGroup != null && !part.ParentGroup.IsDeleted)
+                    if (!part.ParentGroup.IsDeleted)
                     {
                         if (part.ParentGroup.IsAttachment)
                             return false;

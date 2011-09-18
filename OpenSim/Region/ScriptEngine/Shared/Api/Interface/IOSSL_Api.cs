@@ -129,8 +129,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
 
         // Wind Module Functions
         string osWindActiveModelPluginName();
-        void osSetWindParam(string plugin, string param, float value);
-        float osGetWindParam(string plugin, string param);
+        void osSetWindParam(string plugin, string param, LSL_Float value);
+        LSL_Float osGetWindParam(string plugin, string param);
 
         // Parcel commands
         void osParcelJoin(vector pos1, vector pos2);
@@ -168,11 +168,20 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
 
         LSL_List osGetLinkPrimitiveParams(int linknumber, LSL_List rules);
 
-
-        key osNpcCreate(string user, string name, vector position, key cloneFrom);
+        key osNpcCreate(string user, string name, vector position, string notecard);
+        LSL_Key osNpcSaveAppearance(key npc, string notecard);
+        void osNpcLoadAppearance(key npc, string notecard);
+        vector osNpcGetPos(key npc);
         void osNpcMoveTo(key npc, vector position);
+        void osNpcMoveToTarget(key npc, vector target, int options);
+        rotation osNpcGetRot(key npc);
+        void osNpcSetRot(LSL_Key npc, rotation rot);
+        void osNpcStopMoveToTarget(LSL_Key npc);
         void osNpcSay(key npc, string message);
         void osNpcRemove(key npc);
+
+        LSL_Key osOwnerSaveAppearance(string notecard);
+        LSL_Key osAgentSaveAppearance(key agentId, string notecard);
 
         key osGetMapTexture();
         key osGetRegionMapTexture(string regionName);
@@ -180,7 +189,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
 
         int osGetSimulatorMemory();
         void osKickAvatar(string FirstName,string SurName,string alert);
-        void osSetSpeed(string UUID, float SpeedModifier);
+        void osSetSpeed(string UUID, LSL_Float SpeedModifier);
         void osCauseHealing(string avatar, double healing);
         void osCauseDamage(string avatar, double damage);
         LSL_List osGetPrimitiveParams(LSL_Key prim, LSL_List rules);

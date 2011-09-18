@@ -25,13 +25,15 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Threading;
-using OpenMetaverse;
+using log4net;
 using Nini.Config;
+using OpenMetaverse;
 using OpenSim.Region.Framework.Interfaces;
 using OpenSim.Region.Framework.Scenes;
-using OpenSim.Region.CoreModules.Avatar.NPC;
 using OpenSim.Framework;
 using Timer=System.Timers.Timer;
 using OpenSim.Services.Interfaces;
@@ -40,68 +42,170 @@ namespace OpenSim.Region.OptionalModules.World.NPC
 {
     public class NPCModule : IRegionModule, INPCModule
     {
-        // private const bool m_enabled = false;
+        private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
-        private Mutex m_createMutex;
-        private Timer m_timer;
+        private Dictionary<UUID, NPCAvatar> m_avatars = new Dictionary<UUID, NPCAvatar>();
 
-        private Dictionary<UUID,NPCAvatar> m_avatars = new Dictionary<UUID, NPCAvatar>();
-        private Dictionary<UUID,AvatarAppearance> m_appearanceCache = new Dictionary<UUID, AvatarAppearance>();
-
-        // Timer vars.
-        private bool p_inUse = false;
-        private readonly object p_lock = new object();
-        // Private Temporary Variables.
-        private string p_firstname;
-        private string p_lastname;
-        private Vector3 p_position;
-        private Scene p_scene;
-        private UUID p_cloneAppearanceFrom;
-        private UUID p_returnUuid;
-
-        private AvatarAppearance GetAppearance(UUID target, Scene scene)
+        public void Initialise(Scene scene, IConfigSource source)
         {
-            if (m_appearanceCache.ContainsKey(target))
-                return m_appearanceCache[target];
+            IConfig config = source.Configs["NPC"];
 
-            AvatarAppearance appearance = scene.AvatarService.GetAppearance(target);
-            if (appearance != null)
+            if (config != null && config.GetBoolean("Enabled", false))
             {
-                m_appearanceCache.Add(target, appearance);
-                return appearance;
+                scene.RegisterModuleInterface<INPCModule>(this);
+                scene.EventManager.OnSignificantClientMovement += HandleOnSignificantClientMovement;
             }
-
-            return new AvatarAppearance();
         }
 
-        public UUID CreateNPC(string firstname, string lastname,Vector3 position, Scene scene, UUID cloneAppearanceFrom)
+        public void HandleOnSignificantClientMovement(ScenePresence presence)
         {
-            // Block.
-            m_createMutex.WaitOne();
-
-            // Copy Temp Variables for Timer to pick up.
-            lock (p_lock)
+            lock (m_avatars)
             {
-                p_firstname = firstname;
-                p_lastname = lastname;
-                p_position = position;
-                p_scene = scene;
-                p_cloneAppearanceFrom = cloneAppearanceFrom;
-                p_inUse = true;
-                p_returnUuid = UUID.Zero;
+                if (m_avatars.ContainsKey(presence.UUID) && presence.MovingToTarget)
+                {
+                    double distanceToTarget = Util.GetDistanceTo(presence.AbsolutePosition, presence.MoveToPositionTarget);
+//                            m_log.DebugFormat(
+//                                "[NPC MODULE]: Abs pos of {0} is {1}, target {2}, distance {3}",
+//                                presence.Name, presence.AbsolutePosition, presence.MoveToPositionTarget, distanceToTarget);
+
+                    // Check the error term of the current position in relation to the target position
+                    if (distanceToTarget <= ScenePresence.SIGNIFICANT_MOVEMENT)
+                    {
+                        // We are close enough to the target
+                        m_log.DebugFormat("[NPC MODULE]: Stopping movement of npc {0}", presence.Name);
+
+                        presence.Velocity = Vector3.Zero;
+                        presence.AbsolutePosition = presence.MoveToPositionTarget;
+                        presence.ResetMoveToTarget();
+
+                        if (presence.PhysicsActor.Flying)
+                        {
+                            // A horrible hack to stop the NPC dead in its tracks rather than having them overshoot
+                            // the target if flying.
+                            // We really need to be more subtle (slow the avatar as it approaches the target) or at
+                            // least be able to set collision status once, rather than 5 times to give it enough
+                            // weighting so that that PhysicsActor thinks it really is colliding.
+                            for (int i = 0; i < 5; i++)
+                                presence.PhysicsActor.IsColliding = true;
+
+//                            Vector3 targetPos = presence.MoveToPositionTarget;
+                            if (m_avatars[presence.UUID].LandAtTarget)
+                                presence.PhysicsActor.Flying = false;
+
+//                            float terrainHeight = (float)presence.Scene.Heightmap[(int)targetPos.X, (int)targetPos.Y];
+//                            if (targetPos.Z - terrainHeight < 0.2)
+//                            {
+//                                presence.PhysicsActor.Flying = false;
+//                            }
+                        }
+
+//                        m_log.DebugFormat(
+//                            "[NPC MODULE]: AgentControlFlags {0}, MovementFlag {1} for {2}",
+//                            presence.AgentControlFlags, presence.MovementFlag, presence.Name);
+                    }
+                    else
+                    {
+//                        m_log.DebugFormat(
+//                            "[NPC MODULE]: Updating npc {0} at {1} for next movement to {2}",
+//                            presence.Name, presence.AbsolutePosition, presence.MoveToPositionTarget);
+
+                        Vector3 agent_control_v3 = new Vector3();
+                        presence.HandleMoveToTargetUpdate(ref agent_control_v3);
+                        presence.AddNewMovement(agent_control_v3);
+                    }
+//
+////                    presence.DoMoveToPositionUpdate((0, presence.MoveToPositionTarget, null);
+
+//
+//
+
+                }
             }
-
-            while (p_returnUuid == UUID.Zero)
-            {
-                Thread.Sleep(250);
-            }
-
-            m_createMutex.ReleaseMutex();
-
-            return p_returnUuid;
         }
 
-        public void Autopilot(UUID agentID, Scene scene, Vector3 pos)
+        public bool IsNPC(UUID agentId, Scene scene)
+        {
+            ScenePresence sp = scene.GetScenePresence(agentId);
+            if (sp == null || sp.IsChildAgent)
+                return false;
+
+            lock (m_avatars)
+                return m_avatars.ContainsKey(agentId);
+        }
+
+        public bool SetNPCAppearance(UUID agentId, AvatarAppearance appearance, Scene scene)
+        {
+            ScenePresence sp = scene.GetScenePresence(agentId);
+            if (sp == null || sp.IsChildAgent)
+                return false;
+
+            lock (m_avatars)
+                if (!m_avatars.ContainsKey(agentId))
+                    return false;
+
+            scene.AttachmentsModule.DeleteAttachmentsFromScene(sp, false);
+
+            AvatarAppearance npcAppearance = new AvatarAppearance(appearance, true);
+            sp.Appearance = npcAppearance;
+            scene.AttachmentsModule.RezAttachments(sp);
+
+            IAvatarFactory module = scene.RequestModuleInterface<IAvatarFactory>();
+            module.SendAppearance(sp.UUID);
+
+            return true;
+        }
+
+        public UUID CreateNPC(
+            string firstname, string lastname, Vector3 position, Scene scene, AvatarAppearance appearance)
+        {
+            NPCAvatar npcAvatar = new NPCAvatar(firstname, lastname, position, scene);
+            npcAvatar.CircuitCode = (uint)Util.RandomClass.Next(0, int.MaxValue);
+
+            m_log.DebugFormat(
+                "[NPC MODULE]: Creating NPC {0} {1} {2} at {3} in {4}",
+                firstname, lastname, npcAvatar.AgentId, position, scene.RegionInfo.RegionName);
+
+            AgentCircuitData acd = new AgentCircuitData();
+            acd.AgentID = npcAvatar.AgentId;
+            acd.firstname = firstname;
+            acd.lastname = lastname;
+            acd.ServiceURLs = new Dictionary<string, object>();
+
+            AvatarAppearance npcAppearance = new AvatarAppearance(appearance, true);
+            acd.Appearance = npcAppearance;
+
+//            for (int i = 0; i < acd.Appearance.Texture.FaceTextures.Length; i++)
+//            {
+//                m_log.DebugFormat(
+//                    "[NPC MODULE]: NPC avatar {0} has texture id {1} : {2}",
+//                    acd.AgentID, i, acd.Appearance.Texture.FaceTextures[i]);
+//            }
+
+            scene.AuthenticateHandler.AddNewCircuit(npcAvatar.CircuitCode, acd);
+            scene.AddNewClient(npcAvatar, PresenceType.Npc);
+
+            ScenePresence sp;
+            if (scene.TryGetScenePresence(npcAvatar.AgentId, out sp))
+            {
+                m_log.DebugFormat(
+                    "[NPC MODULE]: Successfully retrieved scene presence for NPC {0} {1}", sp.Name, sp.UUID);
+
+                sp.CompleteMovement(npcAvatar, false);
+            }
+            else
+            {
+                m_log.WarnFormat("[NPC MODULE]: Could not find scene presence for NPC {0} {1}", sp.Name, sp.UUID);
+            }
+
+            lock (m_avatars)
+                m_avatars.Add(npcAvatar.AgentId, npcAvatar);
+
+            m_log.DebugFormat("[NPC MODULE]: Created NPC with id {0}", npcAvatar.AgentId);
+
+            return npcAvatar.AgentId;
+        }
+
+        public bool MoveToTarget(UUID agentID, Scene scene, Vector3 pos, bool noFly, bool landAtTarget)
         {
             lock (m_avatars)
             {
@@ -109,74 +213,72 @@ namespace OpenSim.Region.OptionalModules.World.NPC
                 {
                     ScenePresence sp;
                     scene.TryGetScenePresence(agentID, out sp);
-                    sp.DoAutoPilot(0, pos, m_avatars[agentID]);
+
+                    m_log.DebugFormat(
+                        "[NPC MODULE]: Moving {0} to {1} in {2}, noFly {3}, landAtTarget {4}",
+                        sp.Name, pos, scene.RegionInfo.RegionName, noFly, landAtTarget);
+
+                    m_avatars[agentID].LandAtTarget = landAtTarget;
+                    sp.MoveToTarget(pos, noFly);
+
+                    return true;
                 }
             }
+
+            return false;
         }
 
-        public void Say(UUID agentID, Scene scene, string text)
+        public bool StopMoveToTarget(UUID agentID, Scene scene)
         {
             lock (m_avatars)
             {
                 if (m_avatars.ContainsKey(agentID))
                 {
-                    m_avatars[agentID].Say(text);
-                }
-            }
-        }
-
-        public void DeleteNPC(UUID agentID, Scene scene)
-        {
-            lock (m_avatars)
-            {
-                if (m_avatars.ContainsKey(agentID))
-                {
-                    scene.RemoveClient(agentID);
-                    m_avatars.Remove(agentID);
-                }
-            }
-        }
-
-
-        public void Initialise(Scene scene, IConfigSource source)
-        {
-            m_createMutex = new Mutex(false);
-
-            m_timer = new Timer(500);
-            m_timer.Elapsed += m_timer_Elapsed;
-            m_timer.Start();
-            
-            scene.RegisterModuleInterface<INPCModule>(this);
-        }
-
-        void m_timer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
-        {
-            lock (p_lock)
-            {
-                if (p_inUse)
-                {
-                    p_inUse = false;
-
-                    NPCAvatar npcAvatar = new NPCAvatar(p_firstname, p_lastname, p_position, p_scene);
-                    npcAvatar.CircuitCode = (uint) Util.RandomClass.Next(0, int.MaxValue);
-
-                    p_scene.AddNewClient(npcAvatar);
-
                     ScenePresence sp;
-                    if (p_scene.TryGetScenePresence(npcAvatar.AgentId, out sp))
-                    {
-                        AvatarAppearance x = GetAppearance(p_cloneAppearanceFrom, p_scene);
+                    scene.TryGetScenePresence(agentID, out sp);
 
-                        sp.Appearance.SetTextureEntries(x.Texture);
-                        sp.Appearance.SetVisualParams((byte[])x.VisualParams.Clone());
-                        sp.SendAppearanceToAllOtherAgents();
-                    }
+                    sp.Velocity = Vector3.Zero;
+                    sp.ResetMoveToTarget();
 
-                    m_avatars.Add(npcAvatar.AgentId, npcAvatar);
-
-                    p_returnUuid = npcAvatar.AgentId;
+                    return true;
                 }
             }
+
+            return false;
+        }
+
+        public bool Say(UUID agentID, Scene scene, string text)
+        {
+            lock (m_avatars)
+            {
+                if (m_avatars.ContainsKey(agentID))
+                {
+                    ScenePresence sp;
+                    scene.TryGetScenePresence(agentID, out sp);
+
+                    m_avatars[agentID].Say(text);
+
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public bool DeleteNPC(UUID agentID, Scene scene)
+        {
+            lock (m_avatars)
+            {
+                if (m_avatars.ContainsKey(agentID))
+                {
+                    scene.RemoveClient(agentID, false);
+                    m_avatars.Remove(agentID);
+
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         public void PostInitialise()

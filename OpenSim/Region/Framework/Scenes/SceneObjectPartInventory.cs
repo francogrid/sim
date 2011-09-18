@@ -112,15 +112,17 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         /// <summary>
-        /// Reset UUIDs for all the items in the prim's inventory.  This involves either generating
+        /// Reset UUIDs for all the items in the prim's inventory.
+        /// </summary>
+        /// <remarks>
+        /// This involves either generating
         /// new ones or setting existing UUIDs to the correct parent UUIDs.
         ///
         /// If this method is called and there are inventory items, then we regard the inventory as having changed.
-        /// </summary>
-        /// <param name="linkNum">Link number for the part</param>
+        /// </remarks>
         public void ResetInventoryIDs()
         {
-            if (null == m_part || null == m_part.ParentGroup)
+            if (null == m_part)
                 return;
             
             lock (m_items)
@@ -201,7 +203,7 @@ namespace OpenSim.Region.Framework.Scenes
             // Don't let this set the HasGroupChanged flag for attachments
             // as this happens during rez and we don't want a new asset
             // for each attachment each time
-            if (!m_part.ParentGroup.RootPart.IsAttachment)
+            if (!m_part.ParentGroup.IsAttachment)
             {
                 HasInventoryChanged = true;
                 m_part.ParentGroup.HasGroupChanged = true;
